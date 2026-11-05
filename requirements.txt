@@ -1,0 +1,3 @@
+Flask
+launchdarkly-server-sdk
+python-dotenv

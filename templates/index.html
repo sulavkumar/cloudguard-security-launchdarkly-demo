@@ -1,0 +1,282 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CloudGuard Security | CNAPP</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+<div class="app-layout">
+
+    <!-- LEFT NAVIGATION -->
+    <aside class="sidebar">
+        <div class="brand">
+            <div class="brand-icon">C</div>
+            <div>
+                <h2>CloudGuard</h2>
+                <span>CNAPP PLATFORM</span>
+            </div>
+        </div>
+
+        <div class="workspace">
+            <span>WORKSPACE</span>
+            <strong>Acme Corporation</strong>
+            <small>Production Environment</small>
+        </div>
+
+        <nav>
+            <p class="nav-heading">SECURITY</p>
+            <a class="nav-item active" href="#overview">◈ Overview</a>
+            <a class="nav-item" href="#assets">▣ Cloud Assets</a>
+            <a class="nav-item" href="#vulnerabilities">⚠ Vulnerabilities</a>
+            <a class="nav-item" href="#posture">◇ Cloud Posture</a>
+            <a class="nav-item" href="#threats">◉ Threat Detection</a>
+
+            <p class="nav-heading">OPERATIONS</p>
+            <a class="nav-item" href="#remediation">⇧ Remediation</a>
+            <a class="nav-item" href="#ai-assistant">✧ AI Security Analyst</a>
+
+            <p class="nav-heading">ADMINISTRATION</p>
+            <a class="nav-item" href="#settings">⚙ Settings</a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="user-avatar">SK</div>
+            <div>
+                <strong>Security Admin</strong>
+                <small>Administrator</small>
+            </div>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+
+        <header class="topbar">
+            <div>
+                <span class="breadcrumb">CloudGuard / Security Overview</span>
+                <h1>Security Overview</h1>
+            </div>
+            <div class="top-actions">
+                <span class="environment">● Production</span>
+                <button class="icon-button" title="Notifications">♧</button>
+                <div class="user-avatar">SK</div>
+            </div>
+        </header>
+
+        <!-- OVERVIEW -->
+        <section id="overview">
+            <div class="section-heading">
+                <div>
+                    <h2>Cloud Security Posture</h2>
+                    <p>Monitor assets, vulnerabilities and security risks across your cloud environment.</p>
+                </div>
+                <span class="updated">Last updated: Just now</span>
+            </div>
+
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <span class="metric-label">Cloud Assets</span>
+                    <strong>1,284</strong>
+                    <small class="positive">↑ 8.2% this month</small>
+                </div>
+
+                <div class="metric-card">
+                    <span class="metric-label">Critical Vulnerabilities</span>
+                    <strong class="critical-text">24</strong>
+                    <small class="negative">↑ 4 new findings</small>
+                </div>
+
+                <div class="metric-card">
+                    <span class="metric-label">Active Threats</span>
+                    <strong class="high-text">12</strong>
+                    <small class="negative">3 require attention</small>
+                </div>
+
+                <div class="metric-card">
+                    <span class="metric-label">Security Posture Score</span>
+                    <strong class="score-text">86<span>/100</span></strong>
+                    <small class="positive">↑ 5 points this month</small>
+                </div>
+            </div>
+        </section>
+
+        <!-- ASSETS -->
+        <section id="assets" class="dashboard-section">
+            <div class="section-heading">
+                <div>
+                    <h2>Cloud Asset Inventory</h2>
+                    <p>Assets discovered across connected cloud environments.</p>
+                </div>
+            </div>
+
+            <div class="panel">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Asset</th>
+                            <th>Cloud Provider</th>
+                            <th>Region</th>
+                            <th>Status</th>
+                            <th>Risk</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>prod-web-server-01</td>
+                            <td>AWS</td>
+                            <td>us-east-1</td>
+                            <td><span class="status active-status">Active</span></td>
+                            <td><span class="severity critical">Critical</span></td>
+                        </tr>
+                        <tr>
+                            <td>payment-api-cluster</td>
+                            <td>AWS EKS</td>
+                            <td>ap-south-1</td>
+                            <td><span class="status active-status">Active</span></td>
+                            <td><span class="severity high">High</span></td>
+                        </tr>
+                        <tr>
+                            <td>customer-db-prod</td>
+                            <td>AWS RDS</td>
+                            <td>us-west-2</td>
+                            <td><span class="status active-status">Active</span></td>
+                            <td><span class="severity medium">Medium</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- VULNERABILITIES -->
+        <section id="vulnerabilities" class="dashboard-section" data-feature-flag="advanced_vulnerability_scanning">
+            <div class="section-heading">
+                <div>
+                    <h2>Vulnerability Management</h2>
+                    <p>Prioritize vulnerabilities based on severity and business risk.</p>
+                </div>
+            </div>
+
+            <div class="vulnerability-grid">
+                <div class="panel vulnerability-card">
+                    <span>Critical</span>
+                    <strong class="critical-text">24</strong>
+                </div>
+                <div class="panel vulnerability-card">
+                    <span>High</span>
+                    <strong class="high-text">86</strong>
+                </div>
+                <div class="panel vulnerability-card">
+                    <span>Medium</span>
+                    <strong class="medium-text">214</strong>
+                </div>
+                <div class="panel vulnerability-card">
+                    <span>Low</span>
+                    <strong>438</strong>
+                </div>
+            </div>
+        </section>
+
+        <!-- CLOUD POSTURE -->
+        <section id="posture" class="dashboard-section">
+            <div class="section-heading">
+                <div>
+                    <h2>Cloud Security Posture</h2>
+                    <p>Configuration risks across cloud infrastructure.</p>
+                </div>
+            </div>
+            <div class="panel posture-panel">
+                <div>
+                    <span>Misconfiguration Findings</span>
+                    <strong>37</strong>
+                </div>
+                <div>
+                    <span>Publicly Exposed Resources</span>
+                    <strong class="critical-text">8</strong>
+                </div>
+                <div>
+                    <span>Compliance Controls Passed</span>
+                    <strong class="positive">92%</strong>
+                </div>
+            </div>
+        </section>
+
+        <!-- THREAT DETECTION -->
+        <section id="threats" class="dashboard-section" data-feature-flag="threat_detection_enabled">
+            <div class="section-heading">
+                <div>
+                    <h2>Threat Detection</h2>
+                    <p>Suspicious activities detected in your cloud environment.</p>
+                </div>
+            </div>
+            <div class="panel">
+                <div class="threat-row">
+                    <div>
+                        <strong>Unusual API activity detected</strong>
+                        <p>prod-web-server-01 · 5 minutes ago</p>
+                    </div>
+                    <span class="severity critical">Critical</span>
+                </div>
+                <div class="threat-row">
+                    <div>
+                        <strong>Suspicious container execution</strong>
+                        <p>payment-api-cluster · 18 minutes ago</p>
+                    </div>
+                    <span class="severity high">High</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- REMEDIATION -->
+        <section id="remediation" class="dashboard-section" data-feature-flag="auto_remediation_enabled">
+            <div class="section-heading">
+                <div>
+                    <h2>Automated Remediation</h2>
+                    <p>Review security findings and remediation capabilities.</p>
+                </div>
+            </div>
+            <div class="panel">
+                <div class="feature-row">
+                    <div>
+                        <strong>Automated remediation</strong>
+                        <p>Automatically remediate supported security findings.</p>
+                    </div>
+                    <span class="feature-state">Demo module</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- AI SECURITY -->
+        <section id="ai-assistant" class="dashboard-section" data-feature-flag="ai_security_assistant">
+            <div class="section-heading">
+                <div>
+                    <h2>AI Security Analyst</h2>
+                    <p>AI-assisted security investigation and risk summaries.</p>
+                </div>
+            </div>
+            <div class="panel">
+                <div class="feature-row">
+                    <div>
+                        <strong>AI Security Assistant</strong>
+                        <p>Explore AI-powered security investigation capabilities.</p>
+                    </div>
+                    <span class="feature-state">Demo module</span>
+                </div>
+            </div>
+        </section>
+
+        <footer>
+            CloudGuard Security · CNAPP Demonstration Platform · Sample data only
+        </footer>
+
+    </main>
+</div>
+
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
