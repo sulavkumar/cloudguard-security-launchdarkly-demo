@@ -1,12 +1,16 @@
 
 import os
 import logging
+import asyncio
 
 import ldclient
 from ldclient import Context
 from ldclient.config import Config
 
-from flask import Flask, render_template, jsonify
+from launchdarkly_ai_server import config, init_client, shutdown
+from launchdarkly_ai_openai_agents import create_openai_agents_handler
+
+from flask import Flask, render_template, jsonify, request
 from dotenv import load_dotenv
 
 # Load configuration from the .env file
@@ -121,6 +125,58 @@ def simulate_scan(result):
         return jsonify({
             "error": "Invalid scan result. Use success or failure."
         }), 400
+
+
+# CloudGuard AI Security Analyst endpoint
+@app.route("/api/ai/ask", methods=["POST"])
+def ask_ai_security_analyst():
+
+    data = request.get_json(silent=True) or {}
+    question = data.get("question", "").strip()
+
+    if not question:
+        return jsonify({
+            "error": "Please provide a security question."
+        }), 400
+
+    if not ld_client or not ld_client.is_initialized():
+        return jsonify({
+            "error": "LaunchDarkly is not initialized."
+        }), 503
+
+    async def invoke_agent():
+
+        await init_client(client=ld_client)
+
+        context = {
+            "kind": "user",
+            "key": "security_admin_001",
+            "name": "Security Administrator",
+            "user_tier": "Standard",
+            "geography": "India",
+            "environment": "Production"
+        }
+
+        agent = config(
+            key="cloud-guard-ai-security-analyst",
+            handler=create_openai_agents_handler()
+        )
+
+        return await agent.invoke(question, context)
+
+    try:
+        result = asyncio.run(invoke_agent())
+
+        return jsonify({
+            "response": result.response
+        })
+
+    except Exception:
+        logging.exception("CloudGuard AI Agent invocation failed.")
+
+        return jsonify({
+            "error": "The AI Security Analyst could not process your request. Please try again."
+        }), 500
 
 # Display the CloudGuard dashboard
 @app.route("/")

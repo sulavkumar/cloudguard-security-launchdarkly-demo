@@ -1,3 +1,6 @@
 Flask
 launchdarkly-server-sdk
 python-dotenv
+openai
+launchdarkly-ai-server
+launchdarkly-ai-openai-agents

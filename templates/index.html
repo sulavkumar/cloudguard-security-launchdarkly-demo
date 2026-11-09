@@ -252,23 +252,55 @@
         </section>
 
         <!-- AI SECURITY -->
-        <section id="ai-assistant" class="dashboard-section" data-feature-flag="ai_security_assistant">
-            <div class="section-heading">
-                <div>
-                    <h2>AI Security Analyst</h2>
-                    <p>AI-assisted security investigation and risk summaries.</p>
-                </div>
+        
+<!-- AI SECURITY -->
+<section id="ai-assistant"
+         class="dashboard-section"
+         data-feature-flag="ai_security_assistant">
+
+    <div class="section-heading">
+        <div>
+            <h2>AI Security Analyst</h2>
+            <p>Investigate cloud security risks using LaunchDarkly AgentControl and OpenAI.</p>
+        </div>
+    </div>
+
+    <div class="panel ai-assistant-panel">
+
+        <div class="feature-row">
+            <div>
+                <strong>CloudGuard AI Security Analyst</strong>
+                <p>Ask questions about vulnerabilities, threats, IAM and cloud misconfigurations.</p>
             </div>
-            <div class="panel">
-                <div class="feature-row">
-                    <div>
-                        <strong>AI Security Assistant</strong>
-                        <p>Explore AI-powered security investigation capabilities.</p>
-                    </div>
-                    <span class="feature-state">Demo module</span>
-                </div>
+            <span class="feature-state">AI Powered</span>
+        </div>
+
+        <div class="ai-chat-container">
+
+            <label for="ai-question">
+                What would you like to investigate?
+            </label>
+
+            <textarea
+                id="ai-question"
+                rows="4"
+                placeholder="Example: An AWS EC2 server has SSH port 22 exposed to the public internet. What are the security risks and how should I remediate them?">
+            </textarea>
+
+            <button id="ai-submit-button" type="button">
+                Ask AI Security Analyst
+            </button>
+
+            <p id="ai-status" role="status" aria-live="polite"></p>
+
+            <div id="ai-response-container" hidden>
+                <h3>AI Security Analyst Response</h3>
+                <div id="ai-response"></div>
             </div>
-        </section>
+
+        </div>
+    </div>
+</section>
 
         <footer>
             CloudGuard Security · CNAPP Demonstration Platform · Sample data only
