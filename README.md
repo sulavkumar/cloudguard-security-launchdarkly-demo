@@ -1,8 +1,8 @@
 # CloudGuard Security – CNAPP & AI Security Analyst Demo
 
-CloudGuard Security is a demonstration Cloud-Native Application Protection Platform (CNAPP) built with Python Flask and LaunchDarkly. It showcases feature management, controlled feature releases, cloud security visibility, and an AI-powered Security Analyst using LaunchDarkly AgentControl and OpenAI.
+CloudGuard Security is a demonstration Cloud-Native Application Protection Platform (CNAPP) built with Python Flask and LaunchDarkly. It showcases feature management, controlled feature releases, real-time feature flag updates, cloud security visibility, and an AI-powered Security Analyst using LaunchDarkly AgentControl and OpenAI.
 
-The project demonstrates how organizations can introduce AI-powered security capabilities while retaining centralized control over AI configuration, feature availability, and evaluation.
+The project demonstrates how organizations can introduce AI-powered security capabilities while retaining centralized control over feature availability, AI configuration, and evaluation.
 
 ## Project Overview
 
@@ -14,6 +14,7 @@ CloudGuard provides a simulated enterprise cloud security dashboard with the fol
 - Threat detection
 - Automated remediation feature module
 - AI-powered security analysis
+- Real-time feature flag updates without manual browser refresh
 
 The application uses LaunchDarkly feature flags to control the availability of individual security modules.
 
@@ -24,6 +25,8 @@ The application uses LaunchDarkly feature flags to control the availability of i
 | Backend | Python, Flask |
 | Frontend | HTML, CSS, JavaScript |
 | Feature management | LaunchDarkly Server-side SDK |
+| Real-time communication | Server-Sent Events (SSE) |
+| Browser event handling | JavaScript EventSource API |
 | AI configuration | LaunchDarkly AgentControl |
 | AI model | OpenAI GPT-4o |
 | AI framework | OpenAI Agents SDK |
@@ -32,38 +35,86 @@ The application uses LaunchDarkly feature flags to control the availability of i
 
 ## Architecture
 
+### Application architecture
+
 ```text
-                 CloudGuard Dashboard
-                    HTML / CSS / JS
-                           |
-                           v
-                    Python Flask App
-                           |
-              +------------+------------+
-              |                         |
-              v                         v
-       LaunchDarkly SDK           AI Security API
-              |                         |
-              v                         v
-       Feature Flags             LaunchDarkly AgentControl
-              |                         |
-              v                         v
-       Module Visibility          Agent Configuration
-                                        |
-                          +-------------+-------------+
-                          |             |             |
-                          v             v             v
-                        GPT-4o       Custom Skill    Judges
-                          |
-                          v
-                     OpenAI API
-                          |
-                          v
-                AI Security Analysis
-                          |
-                          v
-                 CloudGuard Dashboard
+                  CloudGuard Dashboard
+                     HTML / CSS / JS
+                            |
+                            v
+                     Python Flask App
+                            |
+              +-------------+-------------+
+              |                           |
+              v                           v
+       LaunchDarkly SDK              AI Security API
+              |                           |
+              v                           v
+        Feature Flags              LaunchDarkly AgentControl
+              |                           |
+              v                           v
+       Module Visibility              Agent Configuration
+                                          |
+                             +------------+------------+
+                             |            |            |
+                             v            v            v
+                           GPT-4o     Custom Skill    Judges
+                             |
+                             v
+                         OpenAI API
+                             |
+                             v
+                     AI Security Analysis
+                             |
+                             v
+                     CloudGuard Dashboard
 ```
+
+### Real-time feature flag architecture
+
+CloudGuard uses LaunchDarkly flag value change listeners and Flask Server-Sent Events (SSE) to deliver feature updates to connected browsers.
+
+```text
+       LaunchDarkly Console
+                |
+                | Feature flag value changes
+                v
+      LaunchDarkly Python SDK
+                |
+                | Flag value change listener
+                v
+          Flask Backend
+                |
+                | Publish flag update
+                v
+       SSE Endpoint
+       /api/feature-events
+                |
+                | Persistent HTTP connection
+                v
+       Browser EventSource API
+                |
+                | JavaScript processes update
+                v
+       CloudGuard Dashboard
+                |
+                v
+       UI updates automatically
+       Without manual page refresh
+```
+
+### How real-time updates work
+
+1. An administrator enables or disables a feature flag in LaunchDarkly.
+2. The LaunchDarkly Python Server-side SDK detects a change in the evaluated flag value for the configured customer context.
+3. A registered flag value change listener receives the update.
+4. Flask publishes the updated flag value to connected browser clients.
+5. The browser receives the update through the JavaScript EventSource API.
+6. JavaScript identifies the corresponding dashboard section and updates its visibility.
+
+The browser maintains a persistent SSE connection, allowing the dashboard to receive updates without requiring a manual page refresh.
+
+The SSE endpoint also sends the initial feature flag evaluations when a browser connects.
 
 ## LaunchDarkly Feature Flags
 
@@ -79,11 +130,65 @@ The application uses the following Boolean feature flags:
 
 Feature flag evaluations are performed server-side through the LaunchDarkly Python SDK.
 
+### Customer Context
+
+The application evaluates feature flags using the following customer context:
+
+| Attribute | Value |
+|---|---|
+| Context key | `security_admin_001` |
+| Name | Security Administrator |
+| User tier | Standard |
+| Geography | India |
+| Environment | Production |
+
+LaunchDarkly targeting rules determine which features are enabled for this context.
+
+## Real-Time Feature Flag Updates
+
+CloudGuard supports real-time feature flag updates using:
+
+- LaunchDarkly Python SDK flag value change listeners
+- Flask SSE endpoint
+- JavaScript EventSource API
+
+### SSE Endpoint
+
+```text
+GET /api/feature-events
+```
+
+The endpoint maintains a persistent connection with the browser and sends:
+
+- Initial feature flag evaluations when the connection is established.
+- Individual feature flag updates when a monitored flag changes.
+- Periodic heartbeat messages to keep the connection alive.
+
+### Frontend Integration
+
+The JavaScript frontend subscribes to the SSE endpoint:
+
+```javascript
+const eventSource = new EventSource("/api/feature-events");
+```
+
+When a feature flag update is received, the frontend identifies the corresponding HTML section using its `data-feature-flag` attribute and updates its visibility.
+
+Example:
+
+```html
+<section data-feature-flag="ai_security_assistant">
+    <!-- AI Security Analyst content -->
+</section>
+```
+
+This separates feature evaluation and event delivery from frontend presentation.
+
 ## LaunchDarkly AgentControl Integration
 
 CloudGuard integrates with LaunchDarkly AgentControl to manage AI behavior independently of the application code.
 
-**Agent configuration**
+### Agent Configuration
 
 - Name: CloudGuard AI Security Analyst
 - Config key: `cloud-guard-ai-security-analyst`
@@ -141,6 +246,7 @@ The dashboard sends questions to the Flask backend, which invokes the LaunchDark
 |---|---|---|
 | `/` | GET | Loads the CloudGuard dashboard |
 | `/api/features` | GET | Returns LaunchDarkly feature flag evaluations |
+| `/api/feature-events` | GET | Streams real-time feature flag updates using SSE |
 | `/api/health` | GET | Returns application health information |
 | `/api/scan/success` | GET | Simulates a successful vulnerability scan event |
 | `/api/scan/failure` | GET | Simulates a failed vulnerability scan event |
@@ -248,29 +354,41 @@ http://127.0.0.1:5000
 
 ## Testing the Integration
 
-Verify the OpenAI connection:
+### Verify the OpenAI connection
 
 ```powershell
 python test_openai.py
 ```
 
-Test the LaunchDarkly AgentControl integration:
+### Test the LaunchDarkly AgentControl integration
 
 ```powershell
 python test_agentcontrol.py
 ```
 
-Verify application health:
+### Verify application health
 
 ```text
 http://127.0.0.1:5000/api/health
 ```
 
-Verify feature flag evaluations:
+### Verify feature flag evaluations
 
 ```text
 http://127.0.0.1:5000/api/features
 ```
+
+### Test real-time feature updates
+
+1. Start the CloudGuard application.
+2. Open the dashboard in a browser.
+3. Open browser Developer Tools and select Console.
+4. Confirm that the SSE connection is established.
+5. Open LaunchDarkly in another browser tab.
+6. Toggle one of the five feature flags.
+7. Observe the corresponding dashboard section.
+
+Expected behavior: The corresponding dashboard section updates automatically without manually refreshing the browser.
 
 ## Key Demonstration Scenarios
 
@@ -286,15 +404,19 @@ Demonstrate progressive rollout configurations for security capabilities using L
 
 Use LaunchDarkly context attributes such as customer tier and geography to demonstrate targeted feature availability.
 
-### 4. AI Configuration Management
+### 4. Real-Time Feature Updates
+
+Demonstrate how LaunchDarkly flag changes are propagated to the CloudGuard dashboard using Python SDK listeners and SSE, without manual browser refresh.
+
+### 5. AI Configuration Management
 
 Change the AI model, Agent instructions, and custom skills through LaunchDarkly AgentControl.
 
-### 5. AI Security Analysis
+### 6. AI Security Analysis
 
 Submit cloud security questions through the dashboard and receive AI-generated security recommendations.
 
-### 6. AI Evaluation
+### 7. AI Evaluation
 
 Use Accuracy and Relevance Judges to evaluate AI-generated responses and review evaluation data in LaunchDarkly Monitoring.
 
@@ -307,6 +429,7 @@ Use Accuracy and Relevance Judges to evaluate AI-generated responses and review 
 - The AI Security Analyst provides advisory recommendations and does not perform infrastructure remediation.
 - OpenAI API usage is billed separately from ChatGPT subscriptions.
 - Protect all API keys and LaunchDarkly SDK credentials.
+- Real-time UI updates depend on successful LaunchDarkly listener registration, SSE connectivity, and frontend event handling.
 
 ## Learning Objectives
 
@@ -314,11 +437,13 @@ This project demonstrates practical implementation of:
 
 - Feature management and progressive delivery
 - Context-based targeting
+- Real-time feature flag updates
+- Server-Sent Events
+- Flask API integration
 - AI configuration management
 - Agent-based AI integration
 - Custom AI skills
 - AI response evaluation
-- Flask API integration
 - Secure management of application credentials
 
 ## Repository
