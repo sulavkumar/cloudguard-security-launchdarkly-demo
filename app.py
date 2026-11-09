@@ -1,7 +1,10 @@
 
 import os
+import json
 import logging
 import asyncio
+import queue
+import threading
 
 import ldclient
 from ldclient import Context
@@ -10,21 +13,46 @@ from ldclient.config import Config
 from launchdarkly_ai_server import config, init_client, shutdown
 from launchdarkly_ai_openai_agents import create_openai_agents_handler
 
-from flask import Flask, render_template, jsonify, request
+from flask import (
+    Flask,
+    render_template,
+    jsonify,
+    request,
+    Response,
+    stream_with_context
+)
+
 from dotenv import load_dotenv
 
-# Load configuration from the .env file
+# --------------------------------------------------
+# Application configuration
+# --------------------------------------------------
+
 load_dotenv()
 
-# Create Flask application
 app = Flask(__name__)
 
 logging.basicConfig(level=logging.INFO)
 
-# Initialize LaunchDarkly
+# --------------------------------------------------
+# LaunchDarkly initialization
+# --------------------------------------------------
+
 sdk_key = os.getenv("LAUNCHDARKLY_SDK_KEY")
 
 ld_client = None
+
+FLAG_KEYS = [
+    "new_security_dashboard",
+    "advanced_vulnerability_scanning",
+    "threat_detection_enabled",
+    "auto_remediation_enabled",
+    "ai_security_assistant"
+]
+
+# SSE client queues and synchronization
+sse_clients = []
+sse_lock = threading.Lock()
 
 if sdk_key:
     ldclient.set_config(Config(sdk_key))
@@ -38,7 +66,10 @@ else:
     print("WARNING: LaunchDarkly SDK key is missing.")
 
 
-# Create a demo customer context
+# --------------------------------------------------
+# Customer context
+# --------------------------------------------------
+
 def create_customer_context():
 
     return (
@@ -51,37 +82,18 @@ def create_customer_context():
         .build()
     )
 
-# Send vulnerability scan events to LaunchDarkly
-def record_scan_event(event_key):
 
-    context = create_customer_context()
-
-    if ld_client and ld_client.is_initialized():
-
-        ld_client.track(event_key, context)
-
-        print(f"LaunchDarkly event sent: {event_key}")
-
-    else:
-        print("LaunchDarkly is not initialized. Event not sent.")
-
-
+# --------------------------------------------------
 # Evaluate CloudGuard feature flags
+# --------------------------------------------------
+
 def evaluate_security_features():
 
     context = create_customer_context()
 
-    flag_keys = [
-        "new_security_dashboard",
-        "advanced_vulnerability_scanning",
-        "threat_detection_enabled",
-        "auto_remediation_enabled",
-        "ai_security_assistant"
-    ]
-
     features = {}
 
-    for flag_key in flag_keys:
+    for flag_key in FLAG_KEYS:
 
         if ld_client and ld_client.is_initialized():
 
@@ -97,8 +109,162 @@ def evaluate_security_features():
     return features
 
 
+# --------------------------------------------------
+# Send updates to connected browser clients
+# --------------------------------------------------
 
-# Simulate vulnerability scan results
+def publish_flag_update(flag_key, flag_value):
+
+    message = json.dumps({
+        "type": "flag_update",
+        "flag": flag_key,
+        "value": flag_value
+    })
+
+    with sse_lock:
+
+        disconnected_clients = []
+
+        for client_queue in sse_clients:
+
+            try:
+                client_queue.put_nowait(message)
+
+            except queue.Full:
+                disconnected_clients.append(client_queue)
+
+        for client_queue in disconnected_clients:
+
+            sse_clients.remove(client_queue)
+
+
+# --------------------------------------------------
+# LaunchDarkly flag change listeners
+# --------------------------------------------------
+
+def register_flag_listeners():
+
+    if not ld_client or not ld_client.is_initialized():
+
+        logging.warning(
+            "LaunchDarkly is not initialized. Listeners not registered."
+        )
+
+        return
+
+    context = create_customer_context()
+
+    def create_callback(flag_key):
+
+        def on_flag_value_change(event):
+
+            # Re-evaluate the flag for our customer context.
+            new_value = ld_client.variation(
+                flag_key,
+                context,
+                False
+            )
+
+            logging.info(
+                "LaunchDarkly flag changed: %s = %s",
+                flag_key,
+                new_value
+            )
+
+            # Send the update to connected browsers.
+            publish_flag_update(flag_key, new_value)
+
+        return on_flag_value_change
+
+    tracker = ld_client.flag_tracker
+
+    for flag_key in FLAG_KEYS:
+
+        tracker.add_flag_value_change_listener(
+            flag_key,
+            context,
+            create_callback(flag_key)
+        )
+
+    logging.info(
+        "Registered LaunchDarkly listeners for all five flags."
+    )
+
+
+# --------------------------------------------------
+# Server-Sent Events endpoint
+# --------------------------------------------------
+
+@app.route("/api/feature-events")
+def feature_events():
+
+    client_queue = queue.Queue(maxsize=20)
+
+    with sse_lock:
+        sse_clients.append(client_queue)
+
+    def event_stream():
+
+        try:
+
+            # Send current feature flag values immediately.
+            initial_features = evaluate_security_features()
+
+            yield "data: " + json.dumps({
+                "type": "initial",
+                "features": initial_features
+            }) + "\n\n"
+
+            while True:
+
+                try:
+
+                    message = client_queue.get(timeout=20)
+
+                    yield "data: " + message + "\n\n"
+
+                except queue.Empty:
+
+                    # Keep the SSE connection alive.
+                    yield ": heartbeat\n\n"
+
+        finally:
+
+            with sse_lock:
+
+                if client_queue in sse_clients:
+                    sse_clients.remove(client_queue)
+
+    return Response(
+        stream_with_context(event_stream()),
+        mimetype="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive"
+        }
+    )
+
+
+# --------------------------------------------------
+# Vulnerability scan events
+# --------------------------------------------------
+
+def record_scan_event(event_key):
+
+    context = create_customer_context()
+
+    if ld_client and ld_client.is_initialized():
+
+        ld_client.track(event_key, context)
+
+        print(f"LaunchDarkly event sent: {event_key}")
+
+    else:
+
+        print("LaunchDarkly is not initialized. Event not sent.")
+
+
 @app.route("/api/scan/<result>")
 def simulate_scan(result):
 
@@ -127,19 +293,25 @@ def simulate_scan(result):
         }), 400
 
 
-# CloudGuard AI Security Analyst endpoint
+# --------------------------------------------------
+# CloudGuard AI Security Analyst
+# --------------------------------------------------
+
 @app.route("/api/ai/ask", methods=["POST"])
 def ask_ai_security_analyst():
 
     data = request.get_json(silent=True) or {}
+
     question = data.get("question", "").strip()
 
     if not question:
+
         return jsonify({
             "error": "Please provide a security question."
         }), 400
 
     if not ld_client or not ld_client.is_initialized():
+
         return jsonify({
             "error": "LaunchDarkly is not initialized."
         }), 503
@@ -165,6 +337,7 @@ def ask_ai_security_analyst():
         return await agent.invoke(question, context)
 
     try:
+
         result = asyncio.run(invoke_agent())
 
         return jsonify({
@@ -172,19 +345,33 @@ def ask_ai_security_analyst():
         })
 
     except Exception:
-        logging.exception("CloudGuard AI Agent invocation failed.")
+
+        logging.exception(
+            "CloudGuard AI Agent invocation failed."
+        )
 
         return jsonify({
-            "error": "The AI Security Analyst could not process your request. Please try again."
+            "error": (
+                "The AI Security Analyst could not process "
+                "your request. Please try again."
+            )
         }), 500
 
-# Display the CloudGuard dashboard
+
+# --------------------------------------------------
+# CloudGuard dashboard
+# --------------------------------------------------
+
 @app.route("/")
 def home():
+
     return render_template("index.html")
 
 
-# API endpoint for LaunchDarkly feature evaluations
+# --------------------------------------------------
+# Feature flag API
+# --------------------------------------------------
+
 @app.route("/api/features")
 def get_features():
 
@@ -200,7 +387,10 @@ def get_features():
     })
 
 
-# Application health endpoint
+# --------------------------------------------------
+# Application health
+# --------------------------------------------------
+
 @app.route("/api/health")
 def health():
 
@@ -213,12 +403,19 @@ def health():
     })
 
 
+# --------------------------------------------------
+# Start application
+# --------------------------------------------------
+
 if __name__ == "__main__":
 
     print("Starting CloudGuard Security...")
 
+    register_flag_listeners()
+
     app.run(
         host="127.0.0.1",
         port=5000,
-        debug=False
+        debug=False,
+        threaded=True
     )
